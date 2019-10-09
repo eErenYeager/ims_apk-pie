@@ -10,7 +10,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import android.os.RemoteException;
 
 import com.android.ims.ImsException;
 import com.android.ims.ImsManager;
@@ -49,14 +48,11 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.ServiceManager;
-import android.telephony.ims.stub.ImsFeatureConfiguration;
-import android.telephony.ims.stub.ImsFeatureConfiguration.Builder;
-import android.telephony.ims.compat.feature.MMTelFeature;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
 
-public class ImsService extends android.telephony.ims.compat.ImsService {
+public class ImsService extends Service {
     private static final int MAX_SUBSCRIPTIONS = 1;
     private ImsServiceSub mServiceSub[];
     // service id --> table
@@ -70,7 +66,6 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
 
     private static final int INVALID_PHONE_ID = -1;
     private static final int DEFAULT_PHONE_ID = 0;
-    private int mNumPhonesCache = -1;
     protected int mImsPhoneId = INVALID_PHONE_ID;
     protected int mNumMultiModeStacks = 0;
     protected boolean mIsReceiverRegistered = false;
@@ -81,13 +76,8 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
      * Utility for getting number of subscriptions
      * @return int containing maximum number
      */
-    
-
-    private int getNumSlots() {
-        if (this.mNumPhonesCache == -1) {
-            this.mNumPhonesCache = TelephonyManager.getDefault().getPhoneCount();
-        }
-        return this.mNumPhonesCache;
+    private int getNumSubscriptions() {
+        return MAX_SUBSCRIPTIONS; //One for now - plugin with msim util later
     }
 
     private void enforceReadPhoneState(String fn) {
@@ -102,10 +92,10 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
     @Override
     public void onCreate() {
         super.onCreate();
-        Log.i (this, "ImsService compat created!");
-        mServiceSub = new ImsServiceSub[getNumSlots()];
-        for (int i = 0; i < getNumSlots(); i++) {
-            mServiceSub[i] = new ImsServiceSub(i, this);
+        Log.i (this, "ImsService created!");
+        mServiceSub = new ImsServiceSub[getNumSubscriptions()];
+        for (int i = 0; i < getNumSubscriptions(); i++) {
+            mServiceSub[i] = new ImsServiceSub(i + 1, this);
         }
         ServiceManager.addService("ims", mBinder);
 
@@ -129,55 +119,13 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
 
     @Override
     public IBinder onBind(Intent intent) {
-        if ("android.telephony.ims.compat.ImsService".equals(intent.getAction())) {
-            Log.d((Object) this, "Returning mImsServiceController for ImsService binding");
-            return this.mImsServiceController;
-        }
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("Invalid Intent action in onBind: ");
-        stringBuilder.append(intent.getAction());
-        Log.e((Object) this, stringBuilder.toString());
-        return null;
-    }
-    
-    public ImsFeatureConfiguration querySupportedImsFeatures() {
-        Builder features = new Builder();
-        for (int i = 0; i < getNumSlots(); i++) {
-            features.addFeature(i, 1).addFeature(i, 0);
-        }
-        return features.build();
-    }
-
-    public void readyForFeatureCreation() {
-        Log.i((Object) this, "readyForFeatureCreation :: No-op");
-    }
-
-    public MMTelFeature onCreateMMTelImsFeature(int phoneId) {
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("createMMTelFeature :: phoneId=");
-        stringBuilder.append(phoneId);
-        Log.d((Object) this, stringBuilder.toString());
-        if (phoneId > -1 && phoneId < getNumSlots()) { 
-           MMTelFeature MMTelFeature = new MMTelFeature(phoneId, mBinder );
-           return MMTelFeature;
-        }
-        int newphoneId = 1;
-        int numSlots = getNumSlots();
-        if (newphoneId == numSlots) {
-           MMTelFeature MMTelFeature = new MMTelFeature(DEFAULT_PHONE_ID, mBinder );
-           return MMTelFeature;
-        }
-        stringBuilder = new StringBuilder();
-        stringBuilder.append("createMMTelFeature :: Invalid phoneId ");
-        stringBuilder.append(numSlots);
-        Log.e((Object) this, stringBuilder.toString());
         return null;
     }
 
     @Override
     public void onDestroy() {
         Log.i(this, "Ims Service Destroyed Successfully...");
-        for (int i = 0; i < getNumSlots(); i++) {
+        for (int i = 0; i < getNumSubscriptions(); i++) {
             mServiceSub[i].dispose();
         }
         super.onDestroy();
