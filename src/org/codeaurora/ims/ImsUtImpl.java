@@ -644,7 +644,7 @@ public class ImsUtImpl extends ImsUtImplBase {
 
             if (cfInfoList.length < 1) {
                 Log.e(this, "ImsCallForwardTimerInfo[] has no elements!");
-                mListenerProxy.utConfigurationQueryFailed(null,
+                mListenerProxy.utConfigurationQueryFailed(
                         msg.arg1,
                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                 return;
@@ -680,7 +680,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                 }
 
                 if (badCfResponse) {
-                    mListenerProxy.utConfigurationQueryFailed(null,
+                    mListenerProxy.utConfigurationQueryFailed(
                             msg.arg1,
                             new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                     return;
@@ -693,7 +693,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                 callForwardInfoList[i] = callForwardInfo;
             }
 
-            mListenerProxy.utConfigurationCallForwardQueried(null,
+            mListenerProxy.utConfigurationCallForwardQueried(
                     msg.arg1,
                     callForwardInfoList);
         }
@@ -716,18 +716,18 @@ public class ImsUtImpl extends ImsUtImplBase {
                         if (ar.exception != null) {
                             Log.e(this, "Query CB error");
 
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                            
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             ImsQmiIF.SuppSvcResponse response = (ImsQmiIF.SuppSvcResponse) ar.result;
                             if (response.hasErrorDetails()) {
                                 Log.e(this, "SuppSvcResponse has failure for CB query.");
                                 ImsQmiIF.SipErrorInfo sipError = response.getErrorDetails();
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                        msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                        ImsReasonInfo.CODE_UT_NETWORK_ERROR));
                                 return;
@@ -736,14 +736,14 @@ public class ImsUtImpl extends ImsUtImplBase {
                                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0);
                                 error.mExtraMessage = response.getFailureCause();
                                 Log.e(LOG_TAG, "CB query failed with error = " + error);
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         error);
                                 return;
                             }
                             if (!response.hasStatus()) {
                                 Log.e(this, "No service status info in response for CB query.");
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                             }
@@ -774,7 +774,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                         }
                                     }
                                     mListenerProxy.utConfigurationCallBarringQueried(
-                                            null, msg.arg1, ssInfoArray);
+                                             msg.arg1, ssInfoArray);
                                 } else {
                                     ImsSsInfo[] ssInfoStatus = new ImsSsInfo[1];
                                     ImsSsInfo ssInfo = new ImsSsInfo();
@@ -787,13 +787,13 @@ public class ImsUtImpl extends ImsUtImplBase {
                                     Log.i(this, "success callback Query Anonymous CB, status= "
                                             + ssInfo.mStatus);
                                     mListenerProxy.utConfigurationCallBarringQueried(
-                                            null, msg.arg1, ssInfoStatus);
+                                             msg.arg1, ssInfoStatus);
                                 }
                             }
                         }
                         else {
                             Log.e(this, "Null response received for Query CB!");
-                            mListenerProxy.utConfigurationQueryFailed(null,
+                            mListenerProxy.utConfigurationQueryFailed(
                                     msg.arg1,
                                     new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                         }
@@ -811,18 +811,18 @@ public class ImsUtImpl extends ImsUtImplBase {
                         if (ar.exception != null) {
                             Log.e(this, "Update CB error");
 
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationUpdateFailed(null,
+                            
+                                mListenerProxy.utConfigurationUpdateFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             ImsQmiIF.SuppSvcResponse response = (ImsQmiIF.SuppSvcResponse) ar.result;
                             if (response.hasErrorDetails()) {
                                 Log.e(this, "SuppSvcResponse has failure for CB update.");
                                 ImsQmiIF.SipErrorInfo sipError = response.getErrorDetails();
-                                mListenerProxy.utConfigurationUpdateFailed(null,
+                                mListenerProxy.utConfigurationUpdateFailed(
                                         msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                         ImsReasonInfo.CODE_UT_NETWORK_ERROR));
                                 return;
@@ -831,16 +831,16 @@ public class ImsUtImpl extends ImsUtImplBase {
                                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0);
                                 error.mExtraMessage = response.getFailureCause();
                                 Log.e(LOG_TAG, "CB update failed with error = " + error);
-                                mListenerProxy.utConfigurationUpdateFailed(null,
+                                mListenerProxy.utConfigurationUpdateFailed(
                                         msg.arg1,
                                         error);
                                 return;
                             }
-                            mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                            mListenerProxy.utConfigurationUpdated( msg.arg1);
                         }
                         else {
                             // Null response from RIL is a valid success scenario here.
-                            mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                            mListenerProxy.utConfigurationUpdated( msg.arg1);
                         }
                     }
                     break;
@@ -870,7 +870,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                     Log.d(this, "SuppSvcResponse has failure for msg.what= "
                                             + msg.what);
                                     ImsQmiIF.SipErrorInfo sipError = response.getErrorDetails();
-                                    mListenerProxy.utConfigurationUpdateFailed(null,
+                                    mListenerProxy.utConfigurationUpdateFailed(
                                             msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                             ImsReasonInfo.CODE_UT_NETWORK_ERROR));
                                 } else if (response.hasFailureCause()) {
@@ -880,21 +880,21 @@ public class ImsUtImpl extends ImsUtImplBase {
                                     error.mExtraMessage = response.getFailureCause();
                                     Log.e(LOG_TAG, "SuppSvc " + msg.what + " failed with error = "
                                             + error);
-                                    mListenerProxy.utConfigurationUpdateFailed(null,
+                                    mListenerProxy.utConfigurationUpdateFailed(
                                             msg.arg1,
                                             error);
                                 }
                             }
-                            else if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationUpdateFailed(null,
+                            
+                                mListenerProxy.utConfigurationUpdateFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else {
                             Log.i(this, "Success callback called for msg.what= "
                                     + msg.what);
-                            mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                            mListenerProxy.utConfigurationUpdated( msg.arg1);
                         }
                     }
                     break;
@@ -908,11 +908,11 @@ public class ImsUtImpl extends ImsUtImplBase {
                         }
                         if (ar.exception != null) {
                             Log.e(this, "Query CF error");
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                            
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             if (ar.result instanceof ImsCallForwardTimerInfo[]) {
@@ -924,7 +924,7 @@ public class ImsUtImpl extends ImsUtImplBase {
 
                             if (cfInfoList.length < 1) {
                                 Log.e(this, "CallForwardInfo[] has no elements!");
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                       msg.arg1,
                                       new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                               return;
@@ -988,7 +988,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                 }*/
 
                                 if (badCfResponse) {
-                                    mListenerProxy.utConfigurationQueryFailed(null,
+                                    mListenerProxy.utConfigurationQueryFailed(
                                             msg.arg1,
                                             new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                                     return;
@@ -1001,13 +1001,13 @@ public class ImsUtImpl extends ImsUtImplBase {
                                 callForwardInfoList[i] = callForwardInfo;
                             }
 
-                            mListenerProxy.utConfigurationCallForwardQueried(null,
+                            mListenerProxy.utConfigurationCallForwardQueried(
                                                                              msg.arg1,
                                                                              callForwardInfoList);
                         }
                         else {
                             Log.e(this, "Null response received for Query CF!");
-                            mListenerProxy.utConfigurationQueryFailed(null,
+                            mListenerProxy.utConfigurationQueryFailed(
                                     msg.arg1,
                                     new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                         }
@@ -1023,11 +1023,11 @@ public class ImsUtImpl extends ImsUtImplBase {
                         }
                         if (ar.exception != null) {
                             Log.e(this, "Query CW error");
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                            
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             int[] cwResponse = (int[]) ar.result;
@@ -1047,7 +1047,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                             }
                             else {
                                 Log.e(this, "No service status received for CallWaitingInfo.");
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                                 return;
@@ -1057,13 +1057,13 @@ public class ImsUtImpl extends ImsUtImplBase {
 
                             callWaitingInfoList[0] = callWaitingInfo;
 
-                            mListenerProxy.utConfigurationCallWaitingQueried(null,
+                            mListenerProxy.utConfigurationCallWaitingQueried(
                                                                              msg.arg1,
                                                                              callWaitingInfoList);
                         }
                         else {
                             Log.e(this, "Null response received for Query CW!");
-                            mListenerProxy.utConfigurationQueryFailed(null,
+                            mListenerProxy.utConfigurationQueryFailed(
                                     msg.arg1,
                                     new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0));
                         }
@@ -1082,18 +1082,18 @@ public class ImsUtImpl extends ImsUtImplBase {
                                 Log.e(this, "Query CLIR error");
                             }
 
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                            
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             int[] clirResp = (int[]) ar.result;
                             Bundle clirInfo = new Bundle();
                             clirInfo.putIntArray(ImsPhoneMmiCode.UT_BUNDLE_KEY_CLIR, clirResp);
                             Log.i(this, "Calling success callback for Query CLIR.");
-                            mListenerProxy.utConfigurationQueried(null, msg.arg1,
+                            mListenerProxy.utConfigurationQueried( msg.arg1,
                                     clirInfo);
                         }
                     }
@@ -1111,12 +1111,12 @@ public class ImsUtImpl extends ImsUtImplBase {
                         if (ar.exception != null) {
                             Log.e(this, "Error for Query Event= " + msg.what);
 
-                            if (ar.userObj != null) {
+                            
                                 ImsQmiIF.SipErrorInfo sipError = clipStatus.getErrorDetails();
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                         ImsReasonInfo.CODE_UT_NETWORK_ERROR));
-                            }
+                            
                         } else if (clipStatus != null) {
                             ImsSsInfo ssInfo = new ImsSsInfo();
                             ssInfo.mStatus = clipStatus.getClipStatus();
@@ -1124,7 +1124,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                             clInfo.putParcelable(ImsPhoneMmiCode.UT_BUNDLE_KEY_SSINFO,
                                     ssInfo);
                             Log.d(this, "Success callback on Query event= " + msg.what);
-                            mListenerProxy.utConfigurationQueried(null,
+                            mListenerProxy.utConfigurationQueried(
                                     msg.arg1, clInfo);
                         }
                     }
@@ -1141,12 +1141,12 @@ public class ImsUtImpl extends ImsUtImplBase {
                         if (ar.exception != null) {
                             Log.e(this, "Error for Query Event= " + msg.what);
 
-                            if (ar.userObj != null) {
+                            
                                 ImsQmiIF.SipErrorInfo sipError = colr.getErrorDetails();
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                         ImsReasonInfo.CODE_UT_NETWORK_ERROR));
-                            }
+                            
                         } else if (colr != null) {
                             ImsSsInfo ssInfo = new ImsSsInfo();
                             ssInfo.mStatus = colr.getPresentation();
@@ -1154,7 +1154,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                             clInfo.putParcelable(ImsPhoneMmiCode.UT_BUNDLE_KEY_SSINFO,
                                     ssInfo);
                             Log.d(this, "Success callback on Query event= " + msg.what);
-                            mListenerProxy.utConfigurationQueried(null,
+                            mListenerProxy.utConfigurationQueried(
                                     msg.arg1, clInfo);
                         }
                     }
@@ -1170,11 +1170,11 @@ public class ImsUtImpl extends ImsUtImplBase {
                         if (ar.exception != null) {
                             Log.e(this, "Query COLP error");
 
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                            
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             // COLP response has failure cause information.
@@ -1183,7 +1183,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                             if(response.hasErrorDetails()) {
                                 Log.e(this, "SuppSvcResponse has failure for COLP query.");
                                 ImsQmiIF.SipErrorInfo sipError = response.getErrorDetails();
-                                    mListenerProxy.utConfigurationQueryFailed(null,
+                                    mListenerProxy.utConfigurationQueryFailed(
                                             msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                             ImsReasonInfo.CODE_UT_NETWORK_ERROR));
                             } else if (response.hasFailureCause()) {
@@ -1191,7 +1191,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                         new ImsReasonInfo(ImsReasonInfo.CODE_UT_NETWORK_ERROR, 0);
                                 error.mExtraMessage = response.getFailureCause();
                                 Log.e(LOG_TAG, "COLP query failed with error = " + error);
-                                mListenerProxy.utConfigurationQueryFailed(null,
+                                mListenerProxy.utConfigurationQueryFailed(
                                         msg.arg1,
                                         error);
                             }
@@ -1207,7 +1207,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                             ssInfo);
 
                                     Log.i(this, "Success callback called for Query COLP.");
-                                    mListenerProxy.utConfigurationQueried(null,
+                                    mListenerProxy.utConfigurationQueried(
                                             msg.arg1, clInfo);
                                 }
                             }
@@ -1240,11 +1240,11 @@ public class ImsUtImpl extends ImsUtImplBase {
                                 Log.e(this, "Update COLP error");
                             }
 
-                            if (ar.userObj != null) {
-                                mListenerProxy.utConfigurationUpdateFailed(null,
+                            
+                                mListenerProxy.utConfigurationUpdateFailed(
                                         msg.arg1,
                                         getImsReasonInfoFromResponseError(ar));
-                            }
+                            
                         }
                         else if (ar.result != null) {
                             // CLIP and COLP query responses have failure cause information.
@@ -1255,7 +1255,7 @@ public class ImsUtImpl extends ImsUtImplBase {
                                     Log.e(this,
                                             "SuppSvcResponse has failure for CLIP/COLP update.");
                                     ImsQmiIF.SipErrorInfo sipError = response.getErrorDetails();
-                                    mListenerProxy.utConfigurationUpdateFailed(null,
+                                    mListenerProxy.utConfigurationUpdateFailed(
                                            msg.arg1, ImsCallUtils.getImsReasonInfo(sipError,
                                            ImsReasonInfo.CODE_UT_NETWORK_ERROR));
                                 } else if (response.hasFailureCause()) {
@@ -1265,21 +1265,21 @@ public class ImsUtImpl extends ImsUtImplBase {
                                     error.mExtraMessage = response.getFailureCause();
                                     Log.e(LOG_TAG, "SuppSvc " + msg.what + " failed, error: "
                                             + error);
-                                    mListenerProxy.utConfigurationUpdateFailed(null,
+                                    mListenerProxy.utConfigurationUpdateFailed(
                                             msg.arg1,
                                             error);
                                 }
                                 else {
-                                    mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                                    mListenerProxy.utConfigurationUpdated( msg.arg1);
                                 }
                             }
                             else {
                                 // Nothing to pass to frameworks for this request's response.
-                                mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                                mListenerProxy.utConfigurationUpdated( msg.arg1);
                             }
                         }
                         else {
-                            mListenerProxy.utConfigurationUpdated(null, msg.arg1);
+                            mListenerProxy.utConfigurationUpdated( msg.arg1);
                         }
                     }
 

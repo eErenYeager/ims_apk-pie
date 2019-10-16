@@ -15,13 +15,13 @@ import com.qualcomm.ims.utils.Log;
 
 import android.os.Bundle;
 
-public class ImsUtListenerProxy extends IImsUtListener.Stub {
+public class ImsUtListenerProxy {
     public ImsUtListener mListener;
 
     /**
      * Notifies the result of the supplementary service configuration update.
      */
-    public void utConfigurationUpdated(final IImsUt ut, final int id) {
+    public void utConfigurationUpdated(final int id) {
         if (mListener != null) {
             final Runnable r = new Runnable() {
                 @Override
@@ -37,7 +37,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
         }
     }
 
-    public void utConfigurationUpdateFailed(final IImsUt ut,
+    public void utConfigurationUpdateFailed(
                                             final int id,
                                             final ImsReasonInfo error) {
         if (mListener != null) {
@@ -63,7 +63,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
     /**
      * Notifies the result of the supplementary service configuration query.
      */
-    public void utConfigurationQueried(final IImsUt ut,
+    public void utConfigurationQueried(
                                        final int id,
                                        final Bundle ssInfo) {
         if (mListener != null) {
@@ -81,7 +81,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
         }
     }
 
-    public void utConfigurationQueryFailed(final IImsUt ut,
+    public void utConfigurationQueryFailed(
                                            final int id,
                                            final ImsReasonInfo error) {
         if (mListener != null) {
@@ -102,7 +102,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
     /**
      * Notifies the status of the call barring supplementary service.
      */
-    public void utConfigurationCallBarringQueried(final IImsUt ut,
+    public void utConfigurationCallBarringQueried(
                                                   final int id,
                                                   final ImsSsInfo[] cbInfo) {
         if (mListener != null) {
@@ -123,7 +123,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
     /**
      * Notifies the status of the call forwarding supplementary service.
      */
-    public void utConfigurationCallForwardQueried(final IImsUt ut,
+    public void utConfigurationCallForwardQueried(
                                                   final int id,
                                                   final ImsCallForwardInfo[] cfInfo) {
         if (mListener != null) {
@@ -144,7 +144,7 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
     /**
      * Notifies the status of the call waiting supplementary service.
      */
-    public void utConfigurationCallWaitingQueried(final IImsUt ut,
+    public void utConfigurationCallWaitingQueried(
                                                   final int id,
                                                   final ImsSsInfo[] cwInfo) {
         if (mListener != null) {
