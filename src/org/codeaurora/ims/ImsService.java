@@ -52,9 +52,13 @@ import android.os.ServiceManager;
 import android.telephony.ims.stub.ImsFeatureConfiguration;
 import android.telephony.ims.stub.ImsFeatureConfiguration.Builder;
 import android.telephony.ims.compat.feature.MMTelFeature;
+import android.telephony.ims.compat.feature.ImsFeature;
 import android.telephony.ServiceState;
 import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyManager;
+import android.telephony.ims.stub.ImsEcbmImplBase;
+import android.telephony.ims.stub.ImsMultiEndpointImplBase;
+import android.telephony.ims.stub.ImsUtImplBase;
 
 public class ImsService extends android.telephony.ims.compat.ImsService {
     private static final int MAX_SUBSCRIPTIONS = 1;
@@ -75,13 +79,15 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
     protected int mNumMultiModeStacks = 0;
     protected boolean mIsReceiverRegistered = false;
     private static final String ACTION_GET_RADIO_ACCESS_FAMILY_CHANGED
-            = "org.codeaurora.intent.action.ACTION_RADIO_CAPABILITY_UPDATED";
+            = "android.intent.action.SIM_STATE_CHANGED";
 
     /**
      * Utility for getting number of subscriptions
      * @return int containing maximum number
      */
-    
+    private int getNumSubscriptions() {
+        return MAX_SUBSCRIPTIONS; //One for now - plugin with msim util later
+    }
 
     private int getNumSlots() {
         if (this.mNumPhonesCache == -1) {
@@ -103,11 +109,10 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
     public void onCreate() {
         super.onCreate();
         Log.i (this, "ImsService compat created!");
-        mServiceSub = new ImsServiceSub[getNumSlots()];
-        for (int i = 0; i < getNumSlots(); i++) {
-            mServiceSub[i] = new ImsServiceSub(i, this);
+        mServiceSub = new ImsServiceSub[getNumSubscriptions()];
+        for (int i = 0; i < getNumSubscriptions(); i++) {
+            mServiceSub[i] = new ImsServiceSub(i + 1, this);
         }
-        ServiceManager.addService("ims", mBinder);
 
         // Adding QtiImsExtBinder to ServiceManager
         // For now using DEFAULT_PHONE_ID will migrate once mServiceSub
@@ -115,13 +120,8 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         ServiceManager.addService(QtiImsExtManager.SERVICE_ID,
                 mServiceSub[DEFAULT_PHONE_ID].getQtiImsExtBinder());
 
-        switchImsPhoneByPhoneId(DEFAULT_PHONE_ID);
-
         final int defaultSub = 1;
         ImsVideoGlobals.init(mServiceSub[defaultSub-1], this);
-
-        /* Check if any change in socket communication is required */
-        initSubscriptionStatus();
 
         /* Initialize Call Deflect support to not supported */
         initCallDeflectStatus();
@@ -139,37 +139,19 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         Log.e((Object) this, stringBuilder.toString());
         return null;
     }
-    
-    public ImsFeatureConfiguration querySupportedImsFeatures() {
-        Builder features = new Builder();
-        for (int i = 0; i < getNumSlots(); i++) {
-            features.addFeature(i, 1).addFeature(i, 0);
-        }
-        return features.build();
-    }
-
-    public void readyForFeatureCreation() {
-        Log.i((Object) this, "readyForFeatureCreation :: No-op");
-    }
 
     public MMTelFeature onCreateMMTelImsFeature(int phoneId) {
         StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("createMMTelFeature :: phoneId=");
+        stringBuilder.append("onCreateMMTelImsFeature :: phoneId=");
         stringBuilder.append(phoneId);
-        Log.d((Object) this, stringBuilder.toString());
-        if (phoneId > -1 && phoneId < getNumSlots()) { 
-           MMTelFeature MMTelFeature = new MMTelFeature(phoneId, mBinder );
-           return MMTelFeature;
-        }
-        int newphoneId = 1;
-        int numSlots = getNumSlots();
-        if (newphoneId == numSlots) {
-           MMTelFeature MMTelFeature = new MMTelFeature(DEFAULT_PHONE_ID, mBinder );
-           return MMTelFeature;
+        Log.i((Object) this, stringBuilder.toString());
+        if (phoneId > -1 && phoneId < getNumSlots()) {
+           MMTelFeature imsMMTelFeature = new imsMMTelFeature(this, phoneId);
+           return imsMMTelFeature;
         }
         stringBuilder = new StringBuilder();
-        stringBuilder.append("createMMTelFeature :: Invalid phoneId ");
-        stringBuilder.append(numSlots);
+        stringBuilder.append("onCreateMMTelImsFeature :: Invalid phoneId ");
+        stringBuilder.append(phoneId);
         Log.e((Object) this, stringBuilder.toString());
         return null;
     }
@@ -177,28 +159,12 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
     @Override
     public void onDestroy() {
         Log.i(this, "Ims Service Destroyed Successfully...");
-        for (int i = 0; i < getNumSlots(); i++) {
+        for (int i = 0; i < getNumSubscriptions(); i++) {
             mServiceSub[i].dispose();
         }
         super.onDestroy();
     }
 
-    /* Receiver to handle RAF and DDS change event */
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-            Log.i(this, "mBroadcastReceiver - " + action);
-            if (action.equals(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED)) {
-                int ddsSubId = intent.getIntExtra(PhoneConstants.SUBSCRIPTION_KEY,
-                        SubscriptionManager.INVALID_SUBSCRIPTION_ID);
-                Log.i(this, "got ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED, new DDS = "
-                        + ddsSubId);
-                switchImsPhoneBySubId(ddsSubId);
-            } else if (action.equals(ACTION_GET_RADIO_ACCESS_FAMILY_CHANGED)) {
-                handleRafInfoChange();
-            }
-        }
-    };
 
     /* Method to initialize call deflect status */
     private void initCallDeflectStatus() {
@@ -207,26 +173,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
                   QTI_IMS_DEFLECT_ENABLED, 0);
     }
 
-    /* Method to initialize the Phone Id */
-    private void initSubscriptionStatus() {
-        if (TelephonyManager.getDefault().isMultiSimEnabled()) {
-            Log.i(this, "initSubscriptionStatus: multi-sim...");
-            handleRafInfoChange();
-
-            /* Check if Radio Access Family event change is to be registered */
-            if (mNumMultiModeStacks == 0) {
-                Log.i(this, "initSubscriptionStatus: registered for RAF info");
-
-                /* Start listening to the RAF change event. */
-                this.registerReceiver(mBroadcastReceiver,
-                        new IntentFilter(ACTION_GET_RADIO_ACCESS_FAMILY_CHANGED));
-                mIsReceiverRegistered = true;
-            }
-        } else {
-            /* If not multi-sim, a change in socket communication is not required */
-            Log.i(this, "initSubscriptionStatus: Not multi-sim...");
-        }
-    }
+    
 
     /* Method to re-initialize the Ims Phone instances */
     private void switchImsPhoneByPhoneId(int phoneId) {
@@ -299,7 +246,91 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         return (nRatMask & nMmMask) != 0;
     }
 
-    /* Method to handle Radio Acess Family change event */
+   
+
+    /*
+     * Implement the methods of the IImsService interface in this stub
+     */
+    public class imsMMTelFeature extends MMTelFeature  {
+
+
+	private static final int serviceClass = ImsFeature.MMTEL;
+	private int mySlotId;
+
+	public imsMMTelFeature(Context context, int slotId) {
+           setContext(context);
+	   setSlotId(slotId);
+           mySlotId = slotId;
+           Log.i(this, "setSlotId: " + slotId);
+           
+           /* Check if any change in socket communication is required */
+           initSubscriptionStatus();
+	   if (mImsPhoneId == INVALID_PHONE_ID) {
+              switchImsPhoneByPhoneId(slotId);
+	   }
+	   if (slotId == mImsPhoneId) {
+                mServiceSub[0].setPhoneId(mImsPhoneId);
+                setFeatureState(ImsFeature.STATE_READY);
+                Log.i(this, "setFeatureState ready! slotId = " + slotId);
+            } else {
+                     setFeatureState(ImsFeature.STATE_NOT_AVAILABLE);
+	       }
+	}
+	   
+	
+	/* Receiver to handle RAF and DDS change event */
+    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            Log.i(this, "mBroadcastReceiver - " + action);
+            if (action.equals(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED)) {
+                int ddsSubId = intent.getIntExtra(PhoneConstants.SUBSCRIPTION_KEY,
+                        SubscriptionManager.INVALID_SUBSCRIPTION_ID);
+                Log.i(this, "got ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED, new DDS = "
+                        + ddsSubId);
+                switchImsPhoneBySubId(ddsSubId);
+            } else if (action.equals(ACTION_GET_RADIO_ACCESS_FAMILY_CHANGED)) {
+                      String simStatus = intent.getStringExtra("ss");
+                       if ("LOADED".equals(simStatus)) {
+                        }    handleSimStateChanged();
+            }
+        }
+    };
+
+
+    private void handleSimStateChanged() {
+            handleRafInfoChange();
+            if (mImsPhoneId == mySlotId) {
+                mServiceSub[0].setPhoneId(mImsPhoneId);
+                setFeatureState(ImsFeature.STATE_READY);
+            } else {
+                     setFeatureState(ImsFeature.STATE_NOT_AVAILABLE);
+	    }
+    }           
+
+     /* Method to initialize the Phone Id */
+    private void initSubscriptionStatus() {
+        if (TelephonyManager.getDefault().isMultiSimEnabled()) {
+            Log.i(this, "initSubscriptionStatus: multi-sim...");
+            handleRafInfoChange();
+
+            /* Check if Radio Access Family event change is to be registered */
+            if (mNumMultiModeStacks == 0) {
+                Log.i(this, "initSubscriptionStatus: registered for RAF info");
+
+                /* Start listening to the RAF change event. */
+                registerReceiver(mBroadcastReceiver,
+                        new IntentFilter(ACTION_GET_RADIO_ACCESS_FAMILY_CHANGED));
+                mIsReceiverRegistered = true;
+            }
+        } else {
+            /* If not multi-sim, a change in socket communication is not required */
+            Log.i(this, "initSubscriptionStatus: Not multi-sim...");
+        }
+    }
+
+
+     /* Method to handle Radio Acess Family change event */
     private void handleRafInfoChange() {
         /* If registered for DDS change event, ignore checking for RAF change event */
         if (mNumMultiModeStacks > 0) {
@@ -333,7 +364,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
 
             /* Unregister the earlier receiver, if any */
             if (mIsReceiverRegistered) {
-                this.unregisterReceiver(mBroadcastReceiver);
+                unregisterReceiver(mBroadcastReceiver);
             }
 
             /*
@@ -343,7 +374,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
             switchImsPhoneBySubId(SubscriptionManager.INVALID_SUBSCRIPTION_ID);
 
             /* Start listening to the DDS change event. */
-            this.registerReceiver(mBroadcastReceiver,
+            registerReceiver(mBroadcastReceiver,
                     new IntentFilter(TelephonyIntents.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED));
             mIsReceiverRegistered = true;
             Log.i(this, "handleRafInfoChange: registered for DDS switch...");
@@ -353,12 +384,6 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
             switchImsPhoneByPhoneId(nTempPhoneId);
         }
     }
-
-    /*
-     * Implement the methods of the IImsService interface in this stub
-     */
-    private final IImsService.Stub mBinder = new IImsService.Stub() {
-
         /**
          * Opens the IMS service for making calls and/or receiving generic IMS calls.
          * The caller may make subsequent calls through {@link #makeCall}.
@@ -379,16 +404,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @see #getCallId
          * @see #getServiceId
          */
-        public int open(int phoneId, int serviceClass, PendingIntent incomingCallIntent,
-                IImsRegistrationListener listener) {
-            //In 1x+VoLTE case, open can be called with a different phoneId after phone switch
-            if (phoneId != mImsPhoneId) {
-                //Ensure listeners associated with VoLTE Sub are not overridden. So just return.
-                return 0;
-            }
-            enforceCallingOrSelfPermission(ACCESS_IMS_CALL_SERVICE, "open");
-            return openForSub(1, serviceClass, incomingCallIntent, listener);
-        }
+       
 
         /**
          * Opens the IMS service for making calls and/or receiving generic IMS calls.
@@ -411,20 +427,19 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @see #getCallId
          * @see #getServiceId
          */
-        public int openForSub(int subscription, int serviceClass, PendingIntent incomingCallIntent,
-                IImsRegistrationListener listener) {
+        public int startSession(PendingIntent incomingCallIntent, IImsRegistrationListener listener) {
+	     enforceCallingOrSelfPermission(ACCESS_IMS_CALL_SERVICE, "startSession");
             //TODO: Check valid subscription using framework hooks for multi sim
-            int serviceId = mServiceSub[subscription - 1].getServiceId(serviceClass,
+            int sessionId = mServiceSub[0].getServiceId(serviceClass,
                     incomingCallIntent,
                     listener);
-            if (serviceId > 0) {
-                mServiceSubMap.put(new Integer(serviceId), mServiceSub[subscription - 1]);
+            if (sessionId > 0) {
+                mServiceSubMap.put(new Integer(sessionId), mServiceSub[0]);
             }
             // TODO: (ims-vt) This needds to run on main thread.
-            ImsVideoGlobals.getInstance().setActiveSub(mServiceSub[subscription - 1]);
-            mServiceSub[subscription - 1].setPhoneId(mImsPhoneId);
-            Log.i (this, "Open returns serviceId " + serviceId);
-            return serviceId;
+            ImsVideoGlobals.getInstance().setActiveSub(mServiceSub[0]);
+            Log.i (this, "Open returns sessionId " + sessionId);
+            return sessionId;
         }
 
         /**
@@ -433,7 +448,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          *
          * @param serviceId a service id to be closed which is obtained from {@link ImsManager#open}
          */
-        public void close(int serviceId) {
+        public void endSession(int sessionId) {
             enforceCallingOrSelfPermission(ACCESS_IMS_CALL_SERVICE, "close");
             //TODO
         }
@@ -454,7 +469,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @return true if the specified service id is connected to the IMS network;
          *        false otherwise
          */
-        public boolean isConnected(int serviceId, int serviceType, int callType) {
+        public boolean isConnected(int callSessionType, int callType) {
             enforceReadPhoneState("isConnected");
             return true; //TODO:
         }
@@ -465,7 +480,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceId a service id which is obtained from {@link ImsManager#open}
          * @return true if the specified service id is opened; false otherwise
          */
-        public boolean isOpened(int serviceId) {
+        public boolean isOpened() {
             enforceReadPhoneState("isOpened");
             return true; //TODO:
         }
@@ -475,14 +490,14 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceId - service ID obtained through open
          * @param listener - registration listener
          */
-        public void setRegistrationListener(int serviceId, IImsRegistrationListener listener) {
+        public void setRegistrationListener(int sessionId, IImsRegistrationListener listener) {
             enforceReadPhoneState("setRegistrationListener");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(sessionId));
             if (service == null) {
-                Log.e (this, "Invalid ServiceId ");
+                Log.e (this, "Invalid sessionId ");
                 return;
             }
-            service.setRegistrationListener(serviceId, listener);
+            service.setRegistrationListener(sessionId, listener);
         }
 
         /**
@@ -504,14 +519,14 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          *        {@link ImsCallProfile#CALL_TYPE_VS_RX}
          * @return a {@link ImsCallProfile} object
          */
-        public ImsCallProfile createCallProfile(int serviceId, int serviceType, int callType) {
+        public ImsCallProfile createCallProfile(int sessionId, int callSessionType, int callType) {
             enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, "createCallProfile");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(sessionId));
             if (service == null) {
-                Log.e (this, "Invalid ServiceId ");
+                Log.e (this, "Invalid sessionId ");
                 return null;
             }
-            return service.createCallProfile(serviceId, serviceType, callType);
+            return service.createCallProfile(sessionId, callSessionType, callType);
         }
 
         /**
@@ -522,15 +537,15 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceId a service id which is obtained from {@link ImsManager#open}
          * @param profile a call profile to make the call
          */
-        public IImsCallSession createCallSession(int serviceId, ImsCallProfile profile,
-                IImsCallSessionListener listener) {
+        public IImsCallSession createCallSession(int sessionId, ImsCallProfile profile,
+            IImsCallSessionListener listener) {
             enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, "createCallSession");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(sessionId));
             if (service == null) {
-                Log.e (this, "Invalid ServiceId ");
+                Log.e (this, "Invalid sessionId ");
                 return null;
             }
-            return service.createCallSession(serviceId, profile, listener);
+            return service.createCallSession(sessionId, profile, listener);
         }
 
         /**
@@ -539,22 +554,22 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceId a service id which is obtained from {@link ImsManager#open}
          * @param profile a call profile to make the call
          */
-        public IImsCallSession getPendingCallSession(int serviceId, String callId) {
+        public IImsCallSession getPendingCallSession(int sessionId, String callId) {
             enforceReadPhoneState("getPendingCallSession");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(sessionId));
             if (service == null || callId == null) {
                 Log.e (this, "Invalid arguments " + service + " " + callId);
                 return null;
             }
-            return service.getPendingSession(serviceId, callId);
+            return service.getPendingSession(sessionId, callId);
         }
 
         /**
          * Ut interface for the supplementary service configuration.
          */
-        public IImsUt getUtInterface(int serviceId) {
+        public ImsUtImplBase getUtInterface() {
             enforceReadPhoneState("getUtInterface");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceClass));
             if (service == null) {
                 Log.e (this, "Invalid argument " + service);
                 return null;
@@ -565,7 +580,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         /**
         * Config interface for IMS Configuration
         */
-        public IImsConfig getConfigInterface(int phoneId) {
+        public IImsConfig getConfigInterface() {
             enforceReadPhoneState("getConfigInterface");
             int default_subscription = 1;
             return mServiceSub[default_subscription - 1].getConfigInterface();
@@ -576,8 +591,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceClass - service class
          * @param listener - registration listener
          */
-        public void addRegistrationListener(int phoneId, int serviceClass,
-                       IImsRegistrationListener listener) {
+        public void addRegistrationListener(IImsRegistrationListener listener) {
             enforceReadPhoneState("addRegistrationListener");
             int default_subscription = 1;
             mServiceSub[default_subscription - 1].addRegistrationListener(serviceClass, listener);
@@ -588,8 +602,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * @param serviceClass - service class
          * @param listener - registration listener
          */
-        public void removeRegistrationListener(int phoneId, int serviceClass,
-                       IImsRegistrationListener listener) {
+        public void removeRegistrationListener(IImsRegistrationListener listener) {
             enforceReadPhoneState("removeRegistrationListener");
             int default_subscription = 1;
             mServiceSub[default_subscription - 1].removeRegistrationListener(serviceClass,
@@ -599,7 +612,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         /**
          * Used for turning on IMS when its in OFF state.
          */
-        public void turnOnIms(int phoneId) {
+         public void turnOnIms() {
             enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, "turnOnIms");
             int default_subscription = 1;
             mServiceSub[default_subscription - 1].turnOnIms();
@@ -609,7 +622,7 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
          * Used for turning off IMS when its in ON state. When IMS is OFF, device will behave as
          * CSFB'ed.
          */
-        public void turnOffIms(int phoneId) {
+        public void turnOffIms() {
             enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, "turnOffIms");
             int default_subscription = 1;
             mServiceSub[default_subscription - 1].turnOffIms();
@@ -618,9 +631,9 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
         /**
          * ECBM interface for Emergency callback notifications
          */
-        public IImsEcbm getEcbmInterface(int serviceId) {
+        public ImsEcbmImplBase getEcbmInterface() {
             enforceReadPhoneState("getEcbmInterface");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceClass));
             if (service == null) {
                 Log.e(this, "getEcbmInterface: Invalid argument " + service);
                 return null;
@@ -628,19 +641,19 @@ public class ImsService extends android.telephony.ims.compat.ImsService {
             return service.getEcbmInterface();
         }
 
-        public void setUiTTYMode(int serviceId, int uiTtyMode, Message onComplete) {
+        public void setUiTTYMode(int uiTtyMode, Message onComplete) {
             enforceCallingOrSelfPermission(MODIFY_PHONE_STATE, "setUiTTYMode");
-            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceId));
+            ImsServiceSub service = mServiceSubMap.get(new Integer(serviceClass));
             if (service == null) {
-                Log.e (this, "Invalid arguments " + serviceId);
+                Log.e (this, "Invalid arguments " + serviceClass);
                 return;
             }
-            service.setUiTTYMode(serviceId, uiTtyMode, onComplete);
+            service.setUiTTYMode(serviceClass, uiTtyMode, onComplete);
         }
 
-        public IImsMultiEndpoint getMultiEndpointInterface(int serviceId) {
+        public ImsMultiEndpointImplBase getMultiEndpointInterface() {
             return null;
         }
 
-    };
+    }
 }

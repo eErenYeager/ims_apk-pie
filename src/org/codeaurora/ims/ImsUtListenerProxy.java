@@ -10,12 +10,13 @@ import android.telephony.ims.ImsSsInfo;
 import android.telephony.ims.ImsSsData;
 import com.android.ims.internal.IImsUt;
 import com.android.ims.internal.IImsUtListener;
+import android.telephony.ims.ImsUtListener;
 import com.qualcomm.ims.utils.Log;
 
 import android.os.Bundle;
 
 public class ImsUtListenerProxy extends IImsUtListener.Stub {
-    public IImsUtListener mListener;
+    public ImsUtListener mListener;
 
     /**
      * Notifies the result of the supplementary service configuration update.
@@ -26,9 +27,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationUpdated(ut, id);
+                        mListener.onUtConfigurationUpdated(id);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationUpdated()");
+                        handleError(t, "onUtConfigurationUpdated()");
                     }
                 }
             };
@@ -44,9 +45,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationUpdateFailed(ut, id, error);
+                        mListener.onUtConfigurationUpdateFailed(id, error);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationUpdateFailed()");
+                        handleError(t, "onUtConfigurationUpdateFailed()");
                     }
                 }
             };
@@ -70,9 +71,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationQueried(ut, id, ssInfo);
+                        mListener.onUtConfigurationQueried(id, ssInfo);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationQueried()");
+                        handleError(t, "onUtConfigurationQueried()");
                     }
                 }
             };
@@ -88,9 +89,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationQueryFailed(ut, id, error);
+                        mListener.onUtConfigurationQueryFailed(id, error);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationQueryFailed()");
+                        handleError(t, "onUtConfigurationQueryFailed()");
                     }
                 }
             };
@@ -109,9 +110,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationCallBarringQueried(ut, id, cbInfo);
+                        mListener.onUtConfigurationCallBarringQueried(id, cbInfo);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationCallBarringQueried()");
+                        handleError(t, "onUtConfigurationCallBarringQueried()");
                     }
                 }
             };
@@ -130,9 +131,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationCallForwardQueried(ut, id, cfInfo);
+                        mListener.onUtConfigurationCallForwardQueried(id, cfInfo);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationCallForwardQueried()");
+                        handleError(t, "onUtConfigurationCallForwardQueried()");
                     }
                 }
             };
@@ -151,9 +152,9 @@ public class ImsUtListenerProxy extends IImsUtListener.Stub {
                 @Override
                 public void run() {
                     try {
-                        mListener.utConfigurationCallWaitingQueried(ut, id, cwInfo);
+                        mListener.onUtConfigurationCallWaitingQueried(id, cwInfo);
                     } catch (Throwable t) {
-                        handleError(t, "utConfigurationCallWaitingQueried()");
+                        handleError(t, "onUtConfigurationCallWaitingQueried()");
                     }
                 }
             };
